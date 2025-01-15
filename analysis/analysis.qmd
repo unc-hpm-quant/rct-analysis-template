@@ -1,6 +1,6 @@
 ---
-title: "RCT Analysis Report"
-author: "Dr. Sean Sylvia"
+title: "RCT Analysis Example: GSS Survey Experiment"
+author: "Sean Sylvia"
 date: today
 format:
   html: default
@@ -14,78 +14,273 @@ execute:
 
 # Introduction
 
-This report analyzes a randomized controlled trial (RCT) dataset using R. The goal is to demonstrate reproducible data analysis practices, including data loading, cleaning, and statistical analysis.
+This example analyzes a randomized controlled trial (RCT) dataset from the General Social Survey (GSS). In the following analysis, we will use a condensed version of a publicly available dataset from the General Social Survey (GSS) [(Smith, 2016)](https://gss.norc.org/Documents/reports/project-reports/GSSProject%20report32.pdf). The dataset originates from a randomized controlled trial designed to examine public opinion on government spending for social safety net programs.
 
----
+The treatment condition is based on the wording of the survey question: approximately half of the respondents were asked wether the government spends too much on "welfare", $(W_i = 1)$, while the remaining half were asked about "assistance to the poor," $((W_i = 0)$.
 
-## Load Packages and Functions
+The outcome variable is binary, where $Y_i = 1$ indicates a positive response, and $Y_i = 0$ indicates a negative response.
+
+The dataset also includes several demographic covariates such as age, political views, income, education, marital status, and sex, which will be used to further explore the relationships between treatment assignment and survey responses.
+
+-   **Treatment Variable (`w`)**: Whether the question refers to government spending on "welfare" (`1`) or "assistance to the poor" (`0`).\
+-   **Outcome Variable (`y`)**: Whether the respondent answered positively (`1`) or negatively (`0`).\
+-   **Covariates**: Age, political views, income, education, marital status, and sex.
+
+------------------------------------------------------------------------
+
+# Load Packages and Functions
+
+## renv
+
+To ensure reproducibility, we will use the `renv` package, which has already been configured for this repository. The `renv.lock` file included in the repository will allow you to restore the correct package versions.
+
+You only need to **restore the environment** once before running the analysis. This step will install all necessary packages based on the versions specified in the `renv.lock` file.
+
 ```{r}
-# Load necessary packages and custom helper functions
-library(tidyverse)
-library(broom)
-library(renv)
-source("helpers.R")
+# Restore the R environment using the existing renv.lock file
+# install.packages("renv")  # If renv is not already installed
+renv::restore() 
 ```
 
----
-
-## Load Data
+Note: 'renv::restore()' restores the exact package versions specified in renv.lock. When you create your own analysis repository, you will need to initialize `renv` using the `renv::init()` function. When installing new packages, update the lock file to keep the project reproducible, e.g.:
 
 ```{r}
-# Load the raw dataset
-data <- read_csv("../data/raw/rct_sim_data.csv")
+# install.packages("ggplot2") # Example package installation
+# renv::snapshot() # Captures the current package versions in renv.lock
+```
+
+## Load required packages and helper functions
+
+```{r}
+library(tidyverse)   # For data manipulation and visualization
+library(broom)       # For tidying model outputs
+library(gt)          # For professional table formatting
+library(gtsummary)   # Summary Tables
+library(sandwich)    # For robust standard errors
+library(lmtest)      # For statistical tests
+source("analysis/helpers.R")
+```
+
+Note: `source("helpers.R")` loads the custom helper functions from the `helpers.R` file. You can modify this file to include additional functions specific to your analysis that you reuse across different scripts. Also good coding practice to keep helper functions in a separate file.
+
+# Load Data
+
+```{r}
+
+# Import the dataset directly from Google Drive
+data <- read.csv("https://drive.google.com/uc?export=download&id=1bW6sXgKULsU66xxoji22LfQKUMu1BhWi")
+
+# This is a small dataset so you could load it directly from the raw/ folder in the repository, but for larger datasets, it's better to import from link.
+# data <- read_csv("../data/raw/rct_sim_data.csv")
 
 # Preview the dataset
 head(data)
+
+# Count the number of observations
+n <- nrow(data)
+cat("Number of observations:", n)
+
 ```
 
----
+# Define Variables and Explore the Dataset
 
-## Data Cleaning
+We now define the treatment, outcome, and covariate variables.
 
 ```{r}
-# Clean the data using a helper function
-cleaned_data <- clean_rct_data(data)
+# Defining key variables
+treatment <- "w"
+outcome <- "y"
+covariates <- c("age", "polviews", "income", "educ", "marital", "sex")
 
-# Check for missing values
-summary(cleaned_data)
+# Preview the dataset with selected variables
+head(data[c(outcome, treatment, covariates)])
 ```
 
----
-
-## Descriptive Statistics
+Always check for missing data.
 
 ```{r}
-# Summarize the dataset using a helper function
-summarize_data(cleaned_data)
+# Check for missing data
+colSums(is.na(data))
 ```
 
----
+# Covariate Summary Statistics & Balance
 
-## Covariate Balance
+To verify covariate balance between the treatment and control groups, we will compare summary statistics and test for significant differences. We'll use the **`gtsummary`** package for a professional summary table that includes means, standard deviations, counts, and p-values for continuous and categorical variables.
 
 ```{r}
-# Assess balance of covariates between treatment and control groups
-covariate_balance <- check_covariate_balance(cleaned_data)
-covariate_balance
+# Generate a balance table using gtsummary
+balance_table_gtsummary <- 
+  data %>%
+  select(all_of(c(outcome, treatment, covariates))) %>%
+  tbl_summary(
+    by = treatment,                # Grouping by treatment variable
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd})",  # Means and SD for continuous
+      all_categorical() ~ "{n} ({p}%)"     # Count and percentages for categorical
+    ),
+    missing = "no"                 # Ignore missing data for simplicity
+  ) %>%
+  add_p() %>%                      # Add p-values to compare groups
+  modify_header(label = "**Variable**") %>% 
+  modify_spanning_header(everything() ~ "**Treatment Group**") %>%
+  bold_labels() %>%
+  as_gt() %>%                      # Convert to a gt table for consistent styling
+  tab_header(
+    title = "Covariate Balance Table with `gtsummary`",
+    subtitle = "Means, Percentages, and P-values for Treatment and Control Groups"
+  )
+
+# Display the balance table
+balance_table_gtsummary
 ```
 
----
+Here is a nice description of using `gt` to create tables formatted for clinical/health publications. [Introduction to Clinical Tables with the gt Package](https://www.r-bloggers.com/2024/02/introduction-to-clinical-tables-with-the-gt-package/)
 
-## Difference-in-Means Analysis
+For more social science-y tables, there are several other packages available.
+
+## Estimate Treatment Effects
+
+### Difference-in-means
 
 ```{r}
-# Run a basic difference-in-means analysis
-ate_estimate <- difference_in_means(cleaned_data)
-ate_estimate
+# Difference-in-means estimation
+ate_estimate <- data %>%
+  group_by(w) %>%
+  summarise(mean_outcome = mean(y, na.rm = TRUE)) %>%
+  mutate(group = ifelse(w == 1, "Treated", "Control")) %>%
+  select(-w) %>%
+  relocate(group)
+
+# Display the results using gt
+ate_estimate %>%
+  gt() %>%
+  tab_header(title = "Average Treatment Effect (ATE)") %>%
+  fmt_number(columns = "mean_outcome", decimals = 2)
 ```
 
----
+### Regression
 
-## Plot Treatment Effects
+1. **Regression Without Controls (Incorrect Standard Errors)**
+
+The standard errors here are not adjusted for heteroskedasticity.
+
+```{r ate_ols_bad}
+# Linear regression without robust standard errors
+fmla <- formula(paste0(outcome, '~', treatment))
+ols_bad <- lm(fmla, data = data)
+
+# Extract results (incorrect standard errors)
+summary(ols_bad)$coefficients
+```
+
+
+2. **Regression with Controls (Correct Standard Errors)**
+
+This model adjusts the standard errors using HC2 robust standard errors.
+
+```{r ate_ols_good}
+# Linear regression with heteroskedasticity-robust standard errors
+library(sandwich)
+library(lmtest)
+
+ols_good <- lm(fmla, data = data)
+
+# Corrected standard errors using HC2
+coeftest(ols_good, vcov = vcovHC(ols_good, type = "HC2"))
+```
+
+
+3. **Regression with Controls (and correct Standard Errors)**
+
+Including covariates for improved precision and robust standard errors.
+
+```{r ate_ols_good_cov}
+# Linear regression with controls and robust standard errors
+fmla_controls <- formula(paste0(outcome, '~', treatment, " + ", paste(covariates, collapse = " + ")))
+ols_controls <- lm(fmla_controls, data = data)
+
+# Corrected standard errors with covariates
+coeftest(ols_controls, vcov = vcovHC(ols_controls, type = "HC2"))
+```
+
+
+## Combine into a Table
 
 ```{r}
-# Generate a simple plot of treatment effects
-plot_treatment_effects(cleaned_data)
+# Combine results for all models
+results_df <- tibble(
+  Model = c("No Controls (Incorrect SEs)", "No Controls (Correct SEs)", "With Controls (Correct SEs)"),
+  Estimate = c(coef(ols_bad)[2], 
+               coef(ols_good)[2], 
+               coef(ols_controls)[2]),
+  Std_Error = c(summary(ols_bad)$coefficients[2,2], 
+                coeftest(ols_good, vcov = vcovHC(ols_good, type = "HC2"))[2,2],
+                coeftest(ols_controls, vcov = vcovHC(ols_controls, type = "HC2"))[2,2]),
+  P_Value = c(summary(ols_bad)$coefficients[2,4], 
+              coeftest(ols_good, vcov = vcovHC(ols_good, type = "HC2"))[2,4],
+              coeftest(ols_controls, vcov = vcovHC(ols_controls, type = "HC2"))[2,4])
+)
+
+# Display the summary table using gt
+results_df %>%
+  gt() %>%
+  tab_header(
+    title = "Comparison of Treatment Effects Across Models",
+    subtitle = "Exploring Controls and Correct Standard Errors"
+  ) %>%
+  fmt_number(columns = c("Estimate", "Std_Error", "P_Value"), decimals = 4) %>%
+  cols_label(
+    Model = "Model",
+    Estimate = "Treatment Effect Estimate",
+    Std_Error = "Standard Error",
+    P_Value = "P-Value"
+  ) %>%
+  tab_options(table.border.top.width = px(2))
 ```
 
+## Vizualization
+
+### Extract Coefficients and Standard Errors
+
+```{r}
+# Prepare a dataframe for ggplot2
+coef_data <- tibble(
+  Model = c("No Controls (Incorrect SEs)", 
+            "No Controls (Correct SEs)", 
+            "With Controls (Correct SEs)"),
+  Estimate = c(coef(ols_bad)[2], 
+               coef(ols_good)[2], 
+               coef(ols_controls)[2]),
+  Std_Error = c(
+    summary(ols_bad)$coefficients[2,2],
+    coeftest(ols_good, vcov = vcovHC(ols_good, type = "HC2"))[2,2],
+    coeftest(ols_controls, vcov = vcovHC(ols_controls, type = "HC2"))[2,2]
+  )
+)
+
+# Calculate 95% confidence intervals
+coef_data <- coef_data %>%
+  mutate(
+    CI_Lower = Estimate - 1.96 * Std_Error,
+    CI_Upper = Estimate + 1.96 * Std_Error
+  )
+```
+
+### Create the coefficient plot
+
+```{r}
+# Create the coefficient plot using ggplot2
+ggplot(coef_data, aes(x = Estimate, y = reorder(Model, Estimate))) +
+  geom_point(size = 3, color = "darkblue") +  # Point estimate
+  geom_errorbarh(aes(xmin = CI_Lower, xmax = CI_Upper), height = 0.2, color = "darkblue") +  # CI bars  
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +  # Reference line
+  labs(
+    title = "Forest Plot of Treatment Effects",
+    subtitle = "Comparison of Regression Estimates with 95% Confidence Intervals",
+    x = "Estimated Treatment Effect",
+    y = "Model"
+  ) +
+  theme_minimal()
+```
+
+Ugly plot, but you get the point!
