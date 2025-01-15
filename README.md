@@ -11,7 +11,7 @@ rct-analysis-template/
 ├── renv.lock                # Lockfile for reproducible environments
 ├── data/
 │   └── raw/                 # Unmodified datasets
-│       └── rct_sim_data.csv # Example RCT dataset
+│       └── welfare_small.csv # Example RCT dataset
 │   └── working/             # Intermediate datasets for analysis
 ├── analysis/
 │   ├── analysis.qmd         # Quarto document for analysis and reporting
