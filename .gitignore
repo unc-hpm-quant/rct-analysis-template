@@ -5,10 +5,6 @@
 .Rproj.user
 .Ruserdata
 
-# Dependency management
-renv.lock
-renv/
-
 # Quarto output files
 *.html
 *.pdf
