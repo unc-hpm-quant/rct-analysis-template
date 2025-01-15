@@ -1,0 +1,91 @@
+---
+title: "RCT Analysis Report"
+author: "Dr. Sean Sylvia"
+date: today
+format:
+  html: default
+  pdf: default
+editor: visual
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+# Introduction
+
+This report analyzes a randomized controlled trial (RCT) dataset using R. The goal is to demonstrate reproducible data analysis practices, including data loading, cleaning, and statistical analysis.
+
+---
+
+## Load Packages and Functions
+```{r}
+# Load necessary packages and custom helper functions
+library(tidyverse)
+library(broom)
+library(renv)
+source("helpers.R")
+```
+
+---
+
+## Load Data
+
+```{r}
+# Load the raw dataset
+data <- read_csv("../data/raw/rct_sim_data.csv")
+
+# Preview the dataset
+head(data)
+```
+
+---
+
+## Data Cleaning
+
+```{r}
+# Clean the data using a helper function
+cleaned_data <- clean_rct_data(data)
+
+# Check for missing values
+summary(cleaned_data)
+```
+
+---
+
+## Descriptive Statistics
+
+```{r}
+# Summarize the dataset using a helper function
+summarize_data(cleaned_data)
+```
+
+---
+
+## Covariate Balance
+
+```{r}
+# Assess balance of covariates between treatment and control groups
+covariate_balance <- check_covariate_balance(cleaned_data)
+covariate_balance
+```
+
+---
+
+## Difference-in-Means Analysis
+
+```{r}
+# Run a basic difference-in-means analysis
+ate_estimate <- difference_in_means(cleaned_data)
+ate_estimate
+```
+
+---
+
+## Plot Treatment Effects
+
+```{r}
+# Generate a simple plot of treatment effects
+plot_treatment_effects(cleaned_data)
+```
+
