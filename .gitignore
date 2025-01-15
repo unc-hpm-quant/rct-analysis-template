@@ -10,20 +10,6 @@
 *.pdf
 *.docx
 
-# Data files (prevent working datasets from being committed)
-data/working/
-data/*.Rdata
-data/*.rds
-data/*.sav
-data/*.dta
-data/*.xlsx
-data/*.csv
-
-# Output and reports
-output/
-*.png
-*.jpg
-*.svg
 
 # Misc
 .DS_Store
