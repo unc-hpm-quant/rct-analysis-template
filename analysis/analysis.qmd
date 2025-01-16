@@ -39,7 +39,7 @@ You only need to **restore the environment** once before running the analysis. T
 ```{r}
 # Restore the R environment using the existing renv.lock file
 # install.packages("renv")  # If renv is not already installed
-renv::restore() 
+# renv::restore() 
 ```
 
 Note: 'renv::restore()' restores the exact package versions specified in renv.lock. When you create your own analysis repository, you will need to initialize `renv` using the `renv::init()` function. When installing new packages, update the lock file to keep the project reproducible, e.g.:
@@ -58,7 +58,9 @@ library(gt)          # For professional table formatting
 library(gtsummary)   # Summary Tables
 library(sandwich)    # For robust standard errors
 library(lmtest)      # For statistical tests
-source("analysis/helpers.R")
+
+getwd()
+# source("type your wd here/analysis/helpers.R")
 ```
 
 Note: `source("helpers.R")` loads the custom helper functions from the `helpers.R` file. You can modify this file to include additional functions specific to your analysis that you reuse across different scripts. Also good coding practice to keep helper functions in a separate file.
@@ -160,7 +162,7 @@ ate_estimate %>%
 
 ### Regression
 
-1. **Regression Without Controls (Incorrect Standard Errors)**
+1.  **Regression Without Controls (Incorrect Standard Errors)**
 
 The standard errors here are not adjusted for heteroskedasticity.
 
@@ -173,8 +175,7 @@ ols_bad <- lm(fmla, data = data)
 summary(ols_bad)$coefficients
 ```
 
-
-2. **Regression with Controls (Correct Standard Errors)**
+2.  **Regression with Controls (Correct Standard Errors)**
 
 This model adjusts the standard errors using HC2 robust standard errors.
 
@@ -189,8 +190,7 @@ ols_good <- lm(fmla, data = data)
 coeftest(ols_good, vcov = vcovHC(ols_good, type = "HC2"))
 ```
 
-
-3. **Regression with Controls (and correct Standard Errors)**
+3.  **Regression with Controls (and correct Standard Errors)**
 
 Including covariates for improved precision and robust standard errors.
 
@@ -202,7 +202,6 @@ ols_controls <- lm(fmla_controls, data = data)
 # Corrected standard errors with covariates
 coeftest(ols_controls, vcov = vcovHC(ols_controls, type = "HC2"))
 ```
-
 
 ## Combine into a Table
 
